@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ビリヤード 9ボール スコア管理</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      background: radial-gradient(ellipse at center, #1a4a2e 0%, #0d2a1a 60%, #060f0a 100%);
+      min-height: 100vh;
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+    }
+
+    h1 {
+      font-size: 2rem;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      color: #f0c040;
+      text-shadow: 0 0 20px rgba(240,192,64,0.5);
+      margin-bottom: 6px;
+    }
+
+    .subtitle {
+      font-size: 0.85rem;
+      color: #8db89a;
+      letter-spacing: 2px;
+      margin-bottom: 30px;
+    }
+
+    /* Setup Screen */
+    #setup-screen {
+      background: rgba(0,0,0,0.4);
+      border: 1px solid rgba(240,192,64,0.3);
+      border-radius: 16px;
+      padding: 36px 40px;
+      width: 100%;
+      max-width: 480px;
+      text-align: center;
+    }
+
+    #setup-screen h2 {
+      font-size: 1.1rem;
+      color: #f0c040;
+      margin-bottom: 24px;
+      letter-spacing: 2px;
+    }
+
+    .setup-row {
+      display: flex;
+      flex-direction: column;
+      margin-bottom: 16px;
+      text-align: left;
+    }
+
+    .setup-row label {
+      font-size: 0.8rem;
+      color: #8db89a;
+      margin-bottom: 6px;
+      letter-spacing: 1px;
+    }
+
+    .setup-row input {
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 8px;
+      padding: 10px 14px;
+      color: #fff;
+      font-size: 1rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .setup-row input:focus {
+      border-color: #f0c040;
+    }
+
+    .race-selector {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+
+    .race-btn {
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 8px;
+      color: #ccc;
+      padding: 8px 18px;
+      cursor: pointer;
+      font-size: 0.95rem;
+      transition: all 0.2s;
+    }
+
+    .race-btn.active, .race-btn:hover {
+      background: #f0c040;
+      border-color: #f0c040;
+      color: #000;
+      font-weight: bold;
+    }
+
+    .start-btn {
+      margin-top: 28px;
+      background: linear-gradient(135deg, #f0c040, #d4a010);
+      border: none;
+      border-radius: 10px;
+      color: #000;
+      font-size: 1.1rem;
+      font-weight: bold;
+      padding: 14px 48px;
+      cursor: pointer;
+      letter-spacing: 2px;
+      transition: transform 0.1s, box-shadow 0.2s;
+      box-shadow: 0 4px 16px rgba(240,192,64,0.4);
+    }
+
+    .start-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(240,192,64,0.5); }
+    .start-btn:active { transform: translateY(0); }
+
+    /* Game Screen */
+    #game-screen { display: none; width: 100%; max-width: 700px; }
+
+    .race-info {
+      text-align: center;
+      font-size: 0.85rem;
+      color: #8db89a;
+      letter-spacing: 2px;
+      margin-bottom: 20px;
+    }
+
+    .players-area {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .player-card {
+      background: rgba(0,0,0,0.45);
+      border: 2px solid rgba(255,255,255,0.15);
+      border-radius: 16px;
+      padding: 24px 20px;
+      text-align: center;
+      transition: border-color 0.3s, box-shadow 0.3s;
+      position: relative;
+    }
+
+    .player-card.active-turn {
+      border-color: #f0c040;
+      box-shadow: 0 0 24px rgba(240,192,64,0.3);
+    }
+
+    .player-card.winner {
+      border-color: #40e040;
+      box-shadow: 0 0 30px rgba(64,224,64,0.4);
+      animation: pulse-win 1.5s infinite;
+    }
+
+    @keyframes pulse-win {
+      0%, 100% { box-shadow: 0 0 20px rgba(64,224,64,0.3); }
+      50% { box-shadow: 0 0 40px rgba(64,224,64,0.6); }
+    }
+
+    .turn-badge {
+      position: absolute;
+      top: -12px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #f0c040;
+      color: #000;
+      font-size: 0.7rem;
+      font-weight: bold;
+      padding: 3px 12px;
+      border-radius: 20px;
+      letter-spacing: 1px;
+      display: none;
+    }
+
+    .player-card.active-turn .turn-badge { display: block; }
+
+    .player-name {
+      font-size: 1.2rem;
+      font-weight: bold;
+      color: #fff;
+      margin-bottom: 16px;
+      letter-spacing: 1px;
+    }
+
+    .score-display {
+      font-size: 5rem;
+      font-weight: 900;
+      color: #f0c040;
+      line-height: 1;
+      margin-bottom: 10px;
+      text-shadow: 0 0 16px rgba(240,192,64,0.4);
+    }
+
+    .score-target {
+      font-size: 0.8rem;
+      color: #8db89a;
+      margin-bottom: 20px;
+    }
+
+    .win-btn {
+      background: linear-gradient(135deg, #f0c040, #d4a010);
+      border: none;
+      border-radius: 10px;
+      color: #000;
+      font-size: 0.95rem;
+      font-weight: bold;
+      padding: 12px 24px;
+      cursor: pointer;
+      width: 100%;
+      letter-spacing: 1px;
+      transition: transform 0.1s, opacity 0.2s;
+    }
+
+    .win-btn:hover { transform: scale(1.03); }
+    .win-btn:active { transform: scale(0.98); }
+    .win-btn:disabled { opacity: 0.3; cursor: not-allowed; transform: none; }
+
+    /* Progress bars */
+    .progress-bar-wrap {
+      background: rgba(255,255,255,0.1);
+      border-radius: 4px;
+      height: 6px;
+      margin-bottom: 16px;
+      overflow: hidden;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #f0c040, #d4a010);
+      border-radius: 4px;
+      transition: width 0.4s ease;
+    }
+
+    /* Controls */
+    .controls {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-bottom: 24px;
+    }
+
+    .ctrl-btn {
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 8px;
+      color: #ccc;
+      padding: 10px 20px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      letter-spacing: 1px;
+      transition: all 0.2s;
+    }
+
+    .ctrl-btn:hover { background: rgba(255,255,255,0.2); color: #fff; }
+    .ctrl-btn.danger:hover { background: rgba(220,60,60,0.3); border-color: #dc3c3c; color: #ff8080; }
+
+    /* History */
+    .history-section {
+      background: rgba(0,0,0,0.35);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+      padding: 16px 20px;
+    }
+
+    .history-section h3 {
+      font-size: 0.8rem;
+      color: #8db89a;
+      letter-spacing: 2px;
+      margin-bottom: 12px;
+      text-transform: uppercase;
+    }
+
+    #history-list {
+      list-style: none;
+      max-height: 160px;
+      overflow-y: auto;
+    }
+
+    #history-list li {
+      font-size: 0.85rem;
+      color: #bbb;
+      padding: 5px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      display: flex;
+      justify-content: space-between;
+    }
+
+    #history-list li:last-child { border-bottom: none; }
+    #history-list li .rack-winner { color: #f0c040; font-weight: bold; }
+
+    /* Win overlay */
+    #win-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.8);
+      z-index: 100;
+      justify-content: center;
+      align-items: center;
+    }
+
+    #win-overlay.show { display: flex; }
+
+    .win-modal {
+      background: radial-gradient(ellipse at center, #1a4a2e, #0d2a1a);
+      border: 2px solid #f0c040;
+      border-radius: 20px;
+      padding: 48px 56px;
+      text-align: center;
+      box-shadow: 0 0 60px rgba(240,192,64,0.4);
+      animation: modal-in 0.4s ease;
+    }
+
+    @keyframes modal-in {
+      from { transform: scale(0.7); opacity: 0; }
+      to   { transform: scale(1); opacity: 1; }
+    }
+
+    .win-trophy { font-size: 4rem; margin-bottom: 16px; }
+    .win-label { font-size: 0.9rem; color: #8db89a; letter-spacing: 3px; margin-bottom: 8px; }
+    .win-name { font-size: 2.5rem; font-weight: 900; color: #f0c040; margin-bottom: 24px; }
+
+    .win-actions { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+
+    .win-actions button {
+      border-radius: 10px;
+      padding: 12px 28px;
+      font-size: 1rem;
+      cursor: pointer;
+      font-weight: bold;
+      letter-spacing: 1px;
+      transition: transform 0.1s;
+      border: none;
+    }
+
+    .win-actions button:hover { transform: scale(1.04); }
+
+    .btn-rematch {
+      background: linear-gradient(135deg, #f0c040, #d4a010);
+      color: #000;
+    }
+
+    .btn-newgame {
+      background: rgba(255,255,255,0.15);
+      color: #fff;
+      border: 1px solid rgba(255,255,255,0.3) !important;
+    }
+  </style>
+</head>
+<body>
+
+<h1>🎱 BILLIARDS</h1>
+<p class="subtitle">9 BALL SCORE MANAGER</p>
+
+<!-- Setup Screen -->
+<div id="setup-screen">
+  <h2>ゲーム設定</h2>
+
+  <div class="setup-row">
+    <label>プレイヤー 1 の名前</label>
+    <input type="text" id="p1-name" placeholder="Player 1" maxlength="20">
+  </div>
+  <div class="setup-row">
+    <label>プレイヤー 2 の名前</label>
+    <input type="text" id="p2-name" placeholder="Player 2" maxlength="20">
+  </div>
+
+  <div class="setup-row">
+    <label>レース（先取ラック数）</label>
+    <div class="race-selector" id="race-selector">
+      <button class="race-btn" data-race="3">3</button>
+      <button class="race-btn active" data-race="5">5</button>
+      <button class="race-btn" data-race="7">7</button>
+      <button class="race-btn" data-race="9">9</button>
+      <button class="race-btn" data-race="11">11</button>
+    </div>
+  </div>
+
+  <button class="start-btn" onclick="startGame()">ゲーム開始</button>
+</div>
+
+<!-- Game Screen -->
+<div id="game-screen">
+  <p class="race-info" id="race-info"></p>
+
+  <div class="players-area">
+    <!-- Player 1 -->
+    <div class="player-card" id="card-p1">
+      <div class="turn-badge">YOUR TURN</div>
+      <div class="player-name" id="name-p1">Player 1</div>
+      <div class="progress-bar-wrap"><div class="progress-bar-fill" id="bar-p1"></div></div>
+      <div class="score-display" id="score-p1">0</div>
+      <div class="score-target" id="target-p1">/ 5 ラック</div>
+      <button class="win-btn" id="btn-p1" onclick="addWin(0)">ラック獲得 ＋1</button>
+    </div>
+    <!-- Player 2 -->
+    <div class="player-card" id="card-p2">
+      <div class="turn-badge">YOUR TURN</div>
+      <div class="player-name" id="name-p2">Player 2</div>
+      <div class="progress-bar-wrap"><div class="progress-bar-fill" id="bar-p2"></div></div>
+      <div class="score-display" id="score-p2">0</div>
+      <div class="score-target" id="target-p2">/ 5 ラック</div>
+      <button class="win-btn" id="btn-p2" onclick="addWin(1)">ラック獲得 ＋1</button>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button class="ctrl-btn" onclick="undoLast()">↩ 元に戻す</button>
+    <button class="ctrl-btn" onclick="switchTurn()">⇄ ターン交代</button>
+    <button class="ctrl-btn danger" onclick="resetGame()">↺ リセット</button>
+    <button class="ctrl-btn danger" onclick="goSetup()">⚙ 設定に戻る</button>
+  </div>
+
+  <div class="history-section">
+    <h3>📋 ラック履歴</h3>
+    <ul id="history-list"><li style="color:#666; text-align:center;">まだ記録がありません</li></ul>
+  </div>
+</div>
+
+<!-- Win Overlay -->
+<div id="win-overlay">
+  <div class="win-modal">
+    <div class="win-trophy">🏆</div>
+    <div class="win-label">WINNER</div>
+    <div class="win-name" id="win-name"></div>
+    <div id="win-score" style="color:#8db89a; font-size:1rem; margin-bottom:28px;"></div>
+    <div class="win-actions">
+      <button class="btn-rematch" onclick="rematch()">再戦 (同設定)</button>
+      <button class="btn-newgame" onclick="goSetup()">新しいゲーム</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  let state = {
+    names: ['Player 1', 'Player 2'],
+    scores: [0, 0],
+    race: 5,
+    currentTurn: 0,
+    history: [],
+    gameOver: false
+  };
+
+  document.querySelectorAll('.race-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.race-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    });
+  });
+
+  function getSelectedRace() {
+    const active = document.querySelector('.race-btn.active');
+    return active ? parseInt(active.dataset.race) : 5;
+  }
+
+  function startGame() {
+    const p1 = document.getElementById('p1-name').value.trim() || 'Player 1';
+    const p2 = document.getElementById('p2-name').value.trim() || 'Player 2';
+    state.names = [p1, p2];
+    state.scores = [0, 0];
+    state.race = getSelectedRace();
+    state.currentTurn = 0;
+    state.history = [];
+    state.gameOver = false;
+    renderGame();
+    document.getElementById('setup-screen').style.display = 'none';
+    document.getElementById('game-screen').style.display = 'block';
+  }
+
+  function renderGame() {
+    document.getElementById('race-info').textContent = `RACE TO ${state.race} — ${state.names[0]} vs ${state.names[1]}`;
+    for (let i = 0; i < 2; i++) {
+      const id = i === 0 ? 'p1' : 'p2';
+      document.getElementById(`name-${id}`).textContent = state.names[i];
+      document.getElementById(`score-${id}`).textContent = state.scores[i];
+      document.getElementById(`target-${id}`).textContent = `/ ${state.race} ラック`;
+      const pct = (state.scores[i] / state.race) * 100;
+      document.getElementById(`bar-${id}`).style.width = Math.min(pct, 100) + '%';
+      const card = document.getElementById(`card-${id}`);
+      card.classList.toggle('active-turn', state.currentTurn === i && !state.gameOver);
+      card.classList.remove('winner');
+      document.getElementById(`btn-${id}`).disabled = state.gameOver;
+    }
+    renderHistory();
+  }
+
+  function addWin(playerIdx) {
+    if (state.gameOver) return;
+    state.history.push({ scores: [...state.scores], turn: state.currentTurn, rack: state.scores[0] + state.scores[1] + 1 });
+    state.scores[playerIdx]++;
+    state.currentTurn = playerIdx === 0 ? 1 : 0;
+    if (state.scores[playerIdx] >= state.race) {
+      state.gameOver = true;
+      renderGame();
+      showWin(playerIdx);
+    } else { renderGame(); }
+  }
+
+  function showWin(idx) {
+    document.getElementById(idx === 0 ? 'card-p1' : 'card-p2').classList.add('winner');
+    document.getElementById('win-name').textContent = state.names[idx];
+    document.getElementById('win-score').textContent = `${state.scores[0]} — ${state.scores[1]}`;
+    document.getElementById('win-overlay').classList.add('show');
+  }
+
+  function undoLast() {
+    if (state.history.length === 0) return;
+    const last = state.history.pop();
+    state.scores = [...last.scores]; state.currentTurn = last.turn; state.gameOver = false;
+    renderGame();
+  }
+
+  function switchTurn() {
+    if (state.gameOver) return;
+    state.currentTurn = state.currentTurn === 0 ? 1 : 0;
+    renderGame();
+  }
+
+  function resetGame() {
+    if (!confirm('スコアをリセットしますか？')) return;
+    state.scores = [0, 0]; state.currentTurn = 0; state.history = []; state.gameOver = false;
+    renderGame();
+  }
+
+  function rematch() {
+    document.getElementById('win-overlay').classList.remove('show');
+    state.scores = [0, 0]; state.currentTurn = 0; state.history = []; state.gameOver = false;
+    renderGame();
+  }
+
+  function goSetup() {
+    document.getElementById('win-overlay').classList.remove('show');
+    document.getElementById('game-screen').style.display = 'none';
+    document.getElementById('setup-screen').style.display = 'block';
+  }
+
+  function renderHistory() {
+    const list = document.getElementById('history-list');
+    if (state.history.length === 0) { list.innerHTML = '<li style="color:#666; text-align:center;">まだ記録がありません</li>'; return; }
+    list.innerHTML = '';
+    [...state.history].reverse().forEach((h, i) => {
+      const idx = state.history.indexOf(h);
+      const afterScores = idx + 1 < state.history.length ? state.history[idx + 1].scores : state.scores;
+      const winnerIdx = afterScores[0] > h.scores[0] ? 0 : 1;
+      const li = document.createElement('li');
+      li.innerHTML = `<span>ラック ${h.rack}</span><span class="rack-winner">${state.names[winnerIdx]} 獲得</span><span>${afterScores[0]} — ${afterScores[1]}</span>`;
+      list.appendChild(li);
+    });
+  }
+</script>
+</body>
+</html>
